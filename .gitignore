@@ -8450,3 +8450,5 @@ YOLO26、YOLO12、YOLO11 中文介绍与说明.pdf
 recognaization8commodate.zip
 last.onnx
 last.pt
+scripts/best.pt
+scripts/best.onnx
