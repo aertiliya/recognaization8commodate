@@ -29,15 +29,15 @@ CLASSES = [
 ]
 
 class ProductDataset(Dataset):
-    def __init__(self, data_dir, split='train', transform=None, train_ratio=0.8):
+    def __init__(self, data_dir, split='train', transform=None):
         self.data_dir = Path(data_dir)
         self.split = split
         self.transform = transform
         self.samples = []
         self.class_to_idx = {cls: idx for idx, cls in enumerate(CLASSES)}
         
-        # 直接从 image5/train 目录加载数据
-        images_dir = self.data_dir / 'image5' / 'train'
+        # 根据split选择对应的数据集目录
+        images_dir = Path(f'/kaggle/working/recognaization8commodate/image5/{split}')
         if not images_dir.exists():
             raise ValueError(f"目录不存在: {images_dir}")
         
@@ -48,16 +48,7 @@ class ProductDataset(Dataset):
             for img_path in class_images:
                 all_images.append((str(img_path), self.class_to_idx[class_name]))
         
-        # 划分训练集和验证集
-        import random
-        random.seed(42)
-        random.shuffle(all_images)
-        
-        split_idx = int(len(all_images) * train_ratio)
-        if split == 'train':
-            self.samples = all_images[:split_idx]
-        else:
-            self.samples = all_images[split_idx:]
+        self.samples = all_images
         
         print(f"加载 {split} 数据集: {len(self.samples)} 张图像")
         for cls in CLASSES:
@@ -165,9 +156,38 @@ def validate(model, dataloader, criterion, device):
     return val_loss, val_acc, all_preds, all_labels
 
 
+def evaluate_test_set(model, data_dir, transform, device):
+    """在测试集上评估模型性能"""
+    test_dataset = ProductDataset(data_dir, 'test', transform)
+    test_loader = DataLoader(
+        test_dataset, batch_size=32, shuffle=False, num_workers=4, pin_memory=True
+    )
+    
+    print("\n" + "="*60)
+    print("在测试集上评估模型")
+    print("="*60)
+    
+    test_loss, test_acc, test_preds, test_labels = validate(
+        model, test_loader, nn.CrossEntropyLoss(), device
+    )
+    
+    print(f"\n测试集结果:")
+    print(f"测试损失: {test_loss:.4f}")
+    print(f"测试准确率: {test_acc:.2f}%")
+    
+    print("\n测试集分类报告:")
+    print(classification_report(test_labels, test_preds, target_names=CLASSES))
+    
+    cm = confusion_matrix(test_labels, test_preds)
+    print("\n测试集混淆矩阵:")
+    print(cm)
+    
+    return test_acc, test_preds, test_labels
+
+
 def train_model(
-    data_dir='..',
-    output_dir='../convnext_models',
+    data_dir='/kaggle/working/recognaization8commodate',
+    output_dir='/kaggle/working/recognaization8commodate/convnext_models',
     model_name='convnextv2_atto',
     img_size=224,
     batch_size=32,
@@ -269,6 +289,37 @@ def train_model(
     print("\n混淆矩阵:")
     print(cm)
     
+    # 在测试集上评估最佳模型
+    print("\n" + "="*60)
+    print("加载最佳模型进行测试集评估...")
+    print("="*60)
+    
+    # 加载最佳模型
+    best_model_path = output_path / 'best_model.pth'
+    if best_model_path.exists():
+        checkpoint = torch.load(best_model_path, map_location=device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        print(f"已加载最佳模型 (验证准确率: {checkpoint['best_acc']:.2f}%)")
+        
+        # 在测试集上评估
+        test_acc, test_preds, test_labels = evaluate_test_set(
+            model, data_dir, val_transform, device
+        )
+        
+        # 保存测试集结果
+        test_results = {
+            'test_accuracy': test_acc,
+            'classification_report': classification_report(test_labels, test_preds, target_names=CLASSES, output_dict=True),
+            'confusion_matrix': confusion_matrix(test_labels, test_preds).tolist()
+        }
+        
+        with open(output_path / 'test_results.json', 'w') as f:
+            json.dump(test_results, f, indent=2)
+        
+        print(f"\n测试集结果已保存到: {output_path / 'test_results.json'}")
+    else:
+        print("未找到最佳模型文件，跳过测试集评估")
+    
     return model, history
 
 
@@ -289,9 +340,9 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description='ConvNeXt V2 商品分类模型训练')
-    parser.add_argument('--data_dir', type=str, default='..',
+    parser.add_argument('--data_dir', type=str, default='/kaggle/working/recognaization8commodate',
                         help='数据集目录 (指向项目根目录，包含image5文件夹)')
-    parser.add_argument('--output_dir', type=str, default='../convnext_models',
+    parser.add_argument('--output_dir', type=str, default='/kaggle/working/recognaization8commodate/convnext_models',
                         help='模型输出目录')
     parser.add_argument('--model_name', type=str, default='convnextv2_atto',
                         choices=['convnextv2_atto', 'convnextv2_femto', 
