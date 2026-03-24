@@ -1,10 +1,10 @@
 # YOLO11 商品检测数据集配置文件
 # 用于YOLO训练，请勿用于X AnyLabeling
 
-# 数据集路径 (Kaggle环境)
-path: /kaggle/working/yolo_dataset  # 数据集根目录
-train: /kaggle/working/yolo_dataset/images/train  # 训练集图像路径
-val: /kaggle/working/yolo_dataset/images/val      # 验证集图像路径
+# 数据集路径 (Kaggle软链接环境)
+path: /kaggle/working/recognaization8commodate/yolo_dataset  # 数据集根目录
+train: /kaggle/working/recognaization8commodate/yolo_dataset/train/images/train  # 训练集图像路径
+val: /kaggle/working/recognaization8commodate/yolo_dataset/val/images/val      # 验证集图像路径
 
 test:           # 测试集路径 (可选，相对于path)
 

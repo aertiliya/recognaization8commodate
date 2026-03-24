@@ -78,16 +78,31 @@ def process_dataset(source_dir, output_dir, train_ratio=0.8, val_ratio=0.2):
         (output_path / 'images' / split).mkdir(parents=True, exist_ok=True)
         (output_path / 'labels' / split).mkdir(parents=True, exist_ok=True)
     
-    json_files = list(source_path.glob('*.json'))
+    json_files = list(source_path.rglob('*.json'))  # 递归搜索所有子目录
+    
+    print(f"源目录: {source_path}")
+    print(f"找到的JSON文件总数: {len(json_files)}")
+    if len(json_files) > 0:
+        print(f"前5个JSON文件: {[f.name for f in json_files[:5]]}")
     
     labeled_files = []
+    empty_files = []
     for json_file in json_files:
-        with open(json_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        if data.get('shapes'):
-            labeled_files.append(json_file)
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            if data.get('shapes') and len(data['shapes']) > 0:
+                labeled_files.append(json_file)
+            else:
+                empty_files.append(json_file)
+        except Exception as e:
+            print(f"读取文件 {json_file} 时出错: {e}")
     
-    print(f"找到 {len(labeled_files)} 个已标注文件")
+    print(f"有标注的文件: {len(labeled_files)}")
+    print(f"无标注的文件: {len(empty_files)}")
+    
+    if len(labeled_files) > 0:
+        print(f"前5个有标注的文件: {[f.name for f in labeled_files[:5]]}")
     
     random.shuffle(labeled_files)
     train_count = int(len(labeled_files) * train_ratio)
@@ -97,17 +112,23 @@ def process_dataset(source_dir, output_dir, train_ratio=0.8, val_ratio=0.2):
     def copy_files(files, split):
         for json_file in files:
             image_name = json_file.stem
-            image_file = source_path / f"{image_name}.jpg"
+            json_dir = json_file.parent  # JSON文件所在目录
+            
+            # 在JSON文件所在目录查找图像文件
+            image_file = json_dir / f"{image_name}.jpg"
             
             if not image_file.exists():
                 for ext in ['.png', '.jpeg', '.JPG', '.PNG']:
-                    alt_image = source_path / f"{image_name}{ext}"
+                    alt_image = json_dir / f"{image_name}{ext}"
                     if alt_image.exists():
                         image_file = alt_image
                         break
             
             if image_file.exists():
                 shutil.copy(image_file, output_path / 'images' / split / image_file.name)
+            else:
+                print(f"警告: 找不到图像文件 {image_name} 在 {json_dir}")
+                continue
             
             yolo_lines = convert_json_to_yolo(json_file, output_path, class_mapping)
             

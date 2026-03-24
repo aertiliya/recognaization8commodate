@@ -48,7 +48,7 @@ def main():
     print("步骤 1: 转换标注格式 (JSON -> YOLO)")
     print("-"*60)
     
-    cmd = f'python "{scripts_dir / "01_convert_json_to_yolo.py"}" --source /kaggle/input/models/cartiliya/2/pytorch/default/1/image5 --output /kaggle/working/yolo_dataset'
+    cmd = f'python "{scripts_dir / "01_convert_json_to_yolo.py"}" --source /kaggle/input --output /kaggle/working/yolo_dataset'
     ret = run_command(cmd, cwd=scripts_dir)
     if ret != 0:
         print("转换失败!")
