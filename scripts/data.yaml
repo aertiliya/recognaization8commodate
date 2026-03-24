@@ -1,0 +1,15 @@
+type: yolo11
+name: yolo11s-last
+display_name: product-detector
+model_path: last.onnx
+nms_threshold: 0.45
+confidence_threshold: 0.25
+classes:
+  - hks_large
+  - hks_small
+  - hn_can
+  - jlb_can
+  - kkkl_can
+  - wlj_can
+  - xb_wt
+  - xb
