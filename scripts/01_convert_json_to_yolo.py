@@ -104,6 +104,27 @@ def process_dataset(source_dir, output_dir, train_ratio=0.8, val_ratio=0.2):
     if len(labeled_files) > 0:
         print(f"前5个有标注的文件: {[f.name for f in labeled_files[:5]]}")
     
+    # 统计每个类别的标注数量
+    class_counts = {cls: 0 for cls in CLASSES}
+    total_annotations = 0
+    
+    for json_file in labeled_files:
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            shapes = data.get('shapes', [])
+            for shape in shapes:
+                label = shape.get('label')
+                if label in class_counts:
+                    class_counts[label] += 1
+                    total_annotations += 1
+        except Exception as e:
+            print(f"统计文件 {json_file} 时出错: {e}")
+    
+    print(f"\n类别统计 (共 {total_annotations} 个标注):")
+    for idx, cls in enumerate(CLASSES):
+        print(f"  {idx}: {cls} - {class_counts[cls]} 个标注")
+    
     random.shuffle(labeled_files)
     train_count = int(len(labeled_files) * train_ratio)
     train_files = labeled_files[:train_count]
