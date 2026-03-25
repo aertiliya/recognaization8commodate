@@ -1,7 +1,8 @@
 """
-一键运行脚本 - YOLO11训练工作流程
-按顺序执行：数据转换 -> YOLO11训练
-数据来源: image5/train/
+完整 pipeline 脚本 - 商品识别全流程
+阶段 A: JSON -> YOLO 格式转换
+阶段 B: 裁剪 GT-ROI (真实框区域)
+阶段 C: 训练 ConvNeXt V2 分类器
 """
 
 import os
@@ -9,11 +10,13 @@ import sys
 import subprocess
 from pathlib import Path
 
-def run_command(cmd, cwd=None):
+def run_command(cmd, cwd=None, description=""):
     """运行命令并实时显示输出"""
-    print(f"\n{'='*60}")
+    if description:
+        print(f"\n{'='*60}")
+        print(f"{description}")
+        print('='*60)
     print(f"执行: {cmd}")
-    print('='*60)
     
     process = subprocess.Popen(
         cmd,
@@ -36,51 +39,97 @@ def main():
     scripts_dir = Path(__file__).parent
     project_dir = scripts_dir.parent
     
-    print("\n" + "="*60)
-    print("YOLO11 商品检测 - 训练工作流程")
-    print("="*60)
+    print("\n" + "="*70)
+    print("商品识别完整 Pipeline")
+    print("="*70)
+    print("流程: JSON转YOLO -> 裁剪GT-ROI -> 训练ConvNeXt V2")
+    print(f"项目目录: {project_dir}")
+    print(f"脚本目录: {scripts_dir}")
     
-    print("\n当前项目结构:")
-    print(f"  项目目录: {project_dir}")
-    print(f"  脚本目录: {scripts_dir}")
+    # ============== 阶段 A: JSON 转 YOLO ==============
+    print("\n" + "-"*70)
+    print("阶段 A: JSON 标签转换为 YOLO 格式")
+    print("-"*70)
     
-    print("\n" + "-"*60)
-    print("步骤 1: 转换标注格式 (JSON -> YOLO)")
-    print("-"*60)
-    
-    cmd = f'python "{scripts_dir / "01_convert_json_to_yolo.py"}" --source /kaggle/input --output /kaggle/working/yolo_dataset'
-    ret = run_command(cmd, cwd=scripts_dir)
-    if ret != 0:
-        print("转换失败!")
-        return
-    
-    print("\n" + "-"*60)
-    print("步骤 2: 训练 YOLO11 模型")
-    print("-"*60)
-    
-    response = input("\n是否开始训练? (y/n): ").strip().lower()
+    response = input("\n是否执行阶段 A (JSON -> YOLO)? (y/n): ").strip().lower()
     if response == 'y':
-        epochs = input("训练轮数 (默认100): ").strip()
-        epochs = int(epochs) if epochs else 100
+        source_dir = "image5/train"
+        output_dir = "yolo_dataset"
         
-        model_size = input("模型大小 n/s/m/l/x (默认s): ").strip().lower()
-        model_size = model_size if model_size in ['n', 's', 'm', 'l', 'x'] else 's'
-        
-        cmd = f'python "{scripts_dir / "02_train_yolo11.py"}" --mode train --model_size {model_size} --epochs {epochs}'
-        ret = run_command(cmd, cwd=scripts_dir)
+        cmd = f'python "{scripts_dir / "01_convert_json_to_yolo.py"}" --source {source_dir} --output {output_dir}'
+        ret = run_command(cmd, cwd=project_dir, description="转换 JSON 到 YOLO 格式")
         if ret != 0:
-            print("训练失败!")
+            print("阶段 A 失败!")
             return
+        print("阶段 A 完成!")
     else:
-        print("跳过训练步骤")
+        print("跳过阶段 A")
     
-    print("\n" + "="*60)
-    print("YOLO11训练工作流程完成!")
-    print("="*60)
-    print("\n后续步骤:")
-    print("1. 查看训练结果: runs/detect/product_detector/")
-    print("2. 使用训练好的模型进行推理测试")
-    print("3. 根据需要调整超参数重新训练")
+    # ============== 阶段 B: 裁剪 GT-ROI ==============
+    print("\n" + "-"*70)
+    print("阶段 B: 裁剪 GT-ROI (真实框区域)")
+    print("-"*70)
+    print("从 JSON 标签中读取边界框，裁剪出商品 ROI，按 8 个类别分类保存")
+    
+    response = input("\n是否执行阶段 B (裁剪 GT-ROI)? (y/n): ").strip().lower()
+    if response == 'y':
+        cmd = f'python "{scripts_dir / "crop_gt_roi.py"}"'
+        ret = run_command(cmd, cwd=project_dir, description="裁剪 GT-ROI")
+        if ret != 0:
+            print("阶段 B 失败!")
+            return
+        print("阶段 B 完成!")
+    else:
+        print("跳过阶段 B")
+    
+    # ============== 阶段 C: 训练 ConvNeXt V2 ==============
+    print("\n" + "-"*70)
+    print("阶段 C: 训练 ConvNeXt V2 分类模型")
+    print("-"*70)
+    print("使用裁剪后的 GT-ROI 图像训练分类器")
+    
+    response = input("\n是否执行阶段 C (训练 ConvNeXt)? (y/n): ").strip().lower()
+    if response == 'y':
+        epochs = input("训练轮数 (默认50): ").strip()
+        epochs = int(epochs) if epochs else 50
+        
+        batch_size = input("批次大小 (默认32): ").strip()
+        batch_size = int(batch_size) if batch_size else 32
+        
+        model_name = input("模型名称 (默认convnextv2_atto): ").strip()
+        model_name = model_name if model_name else 'convnextv2_atto'
+        
+        device = input("训练设备 (默认cuda): ").strip()
+        device = device if device else 'cuda'
+        
+        roi_dir = "gt_roi_dataset"
+        output_dir = "convnext_models"
+        
+        cmd = (f'python "{scripts_dir / "train_convnext_roi.py"}" '
+               f'--roi_dir {roi_dir} '
+               f'--output_dir {output_dir} '
+               f'--model_name {model_name} '
+               f'--epochs {epochs} '
+               f'--batch_size {batch_size} '
+               f'--device {device}')
+        
+        ret = run_command(cmd, cwd=project_dir, 
+                         description=f"训练 ConvNeXt V2 ({model_name}, {epochs} epochs)")
+        if ret != 0:
+            print("阶段 C 失败!")
+            return
+        print("阶段 C 完成!")
+    else:
+        print("跳过阶段 C")
+    
+    # ============== 完成总结 ==============
+    print("\n" + "="*70)
+    print("Pipeline 执行完成!")
+    print("="*70)
+    print("\n输出文件:")
+    print(f"  1. YOLO 数据集: yolo_dataset/")
+    print(f"  2. GT-ROI 数据集: gt_roi_dataset/")
+    print(f"  3. 训练好的模型: convnext_models/")
 
 if __name__ == "__main__":
     main()
