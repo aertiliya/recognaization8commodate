@@ -17,6 +17,7 @@ def main():
     parser.add_argument('--yolo_pt', default=f'{BASE}/scripts/best.pt')
     parser.add_argument('--conv_pth', default=f'{BASE}/convnext_models/best_model.pth')
     parser.add_argument('--epochs', default='50')
+    parser.add_argument('--lr', type=float, default=0.0001)
     
     args = parser.parse_args()
     scripts = Path(__file__).parent

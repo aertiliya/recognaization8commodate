@@ -166,5 +166,6 @@ if __name__ == "__main__":
     parser.add_argument('--roi_dir', type=str, default='gt_roi_dataset')
     parser.add_argument('--output_dir', type=str, default='convnext_models')
     parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--lr', type=float, default=0.0001, help='学习率')
     args = parser.parse_args()
-    train_model(roi_dir=args.roi_dir, output_dir=args.output_dir, epochs=args.epochs)
+    train_model(roi_dir=args.roi_dir, output_dir=args.output_dir, epochs=args.epochs,lr=args.lr)
