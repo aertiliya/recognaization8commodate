@@ -50,15 +50,38 @@ def main():
     print("\n" + "-"*70)
     print("阶段 A: JSON 标签转换为 YOLO 格式")
     print("-"*70)
+    print("选项 1: 自动划分 - 从单个目录按比例划分 train/val")
+    print("选项 2: 分别处理 - 已手动划分好 train/val 目录")
     
     response = input("\n是否执行阶段 A (JSON -> YOLO)? (y/n): ").strip().lower()
     if response == 'y':
-        source_dir = "image5/train"
-        # 使用绝对路径以匹配 yolo_train.yaml 中的配置
+        mode = input("选择模式 (1=自动划分, 2=分别处理, 默认=2): ").strip()
+        
+        # 默认使用模式2（分别处理）
+        if not mode:
+            mode = '2'
+        
         output_dir = os.path.abspath("yolo_dataset")
         
-        cmd = f'python "{scripts_dir / "01_convert_json_to_yolo.py"}" --source {source_dir} --output {output_dir}'
-        ret = run_command(cmd, cwd=project_dir, description="转换 JSON 到 YOLO 格式")
+        if mode == '1':
+            # 自动划分模式
+            source_dir = "image5/train"
+            cmd = f'python "{scripts_dir / "01_convert_json_to_yolo.py"}" --source {source_dir} --output {output_dir} --train_ratio 0.8'
+            ret = run_command(cmd, cwd=project_dir, description="转换 JSON 到 YOLO 格式 (自动划分)")
+        else:
+            # 分别处理模式：分别转换 train 和 val
+            train_dir = "image5/train"
+            val_dir = "image5/val"
+            
+            # 先转换 train (100%)
+            cmd = f'python "{scripts_dir / "01_convert_json_to_yolo.py"}" --source {train_dir} --output {output_dir} --train_ratio 1.0'
+            ret = run_command(cmd, cwd=project_dir, description="转换 Train 集")
+            
+            if ret == 0:
+                # 再转换 val (作为第二个批次)
+                cmd = f'python "{scripts_dir / "01_convert_json_to_yolo.py"}" --source {val_dir} --output {output_dir} --train_ratio 1.0'
+                ret = run_command(cmd, cwd=project_dir, description="转换 Val 集")
+        
         if ret != 0:
             print("阶段 A 失败!")
             return
