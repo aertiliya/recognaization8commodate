@@ -32,7 +32,7 @@ def main():
         run_cmd(f'python "{scripts/"crop_gt_roi.py"}" --input "{BASE}/image5/val" --output "{BASE}/gt_roi_dataset/val"', BASE, "[C] 裁剪 Val 集")
     
     if 'D' in args.stages:
-        run_cmd(f'python "{scripts/"train_convnext_roi.py"}" --roi_dir "{BASE}/gt_roi_dataset" --output_dir "{BASE}/convnext_models" --epochs {args.epochs}', BASE, "[D] 训练分类器")
+        run_cmd(f'python "{scripts/"train_convnext_roi.py"}" --roi_dir "{BASE}/gt_roi_dataset" --output_dir "{BASE}/convnext_models" --epochs {args.epochs} --lr {args.lr}', BASE, "[D] 训练分类器")
         
     if 'E' in args.stages:
         run_cmd(f'python "{scripts/"evaluate_end2end.py"}" --test_images "{args.test_images}" --test_labels "{args.test_labels}" --yolo_model "{args.yolo_pt}" --convnext_model "{args.conv_pth}"', BASE, "[E] 端到端评估")
