@@ -1,4 +1,6 @@
+%%writefile /kaggle/working/recognaization8commodate/scripts/crop_gt_roi.py
 import cv2, json, os, argparse
+import numpy as np
 from pathlib import Path
 from tqdm import tqdm
 
@@ -18,15 +20,13 @@ def parse_json_label(json_path):
 def process_dataset(input_dir, output_dir):
     input_path = Path(input_dir)
     json_files = list(input_path.glob("*.json"))
-    print(f"\n✂️ 开始裁剪: {input_dir} -> {output_dir}")
-    print(f"找到 {len(json_files)} 个 JSON 标签")
+    print(f"\n✂️ 开始等比例黑科技裁剪: {input_dir} -> {output_dir}")
     
     for cls in CLASS_NAMES.keys(): os.makedirs(os.path.join(output_dir, cls), exist_ok=True)
         
     stats = {k: 0 for k in CLASS_NAMES.keys()}
     for json_path in tqdm(json_files, desc="裁剪进度"):
         base_name = json_path.stem
-        # 匹配对应图片
         img_path = next((input_path / f"{base_name}{ext}" for ext in ['.jpg', '.jpeg', '.png'] if (input_path / f"{base_name}{ext}").exists()), None)
         if not img_path: continue
         
@@ -39,11 +39,24 @@ def process_dataset(input_dir, output_dir):
             x1, y1, x2, y2 = max(0, x1), max(0, y1), min(w, x2), min(h, y2)
             if x2 <= x1 or y2 <= y1: continue
             
-            roi = cv2.resize(image[y1:y2, x1:x2], ROI_SIZE, interpolation=cv2.INTER_CUBIC)
+            cropped = image[y1:y2, x1:x2]
+            h_roi, w_roi = cropped.shape[:2]
+            
+            # 🔥 核心提分点：等比例缩放 + 灰边填充 (Letterbox)
+            scale = min(ROI_SIZE[0] / w_roi, ROI_SIZE[1] / h_roi)
+            nw, nh = int(w_roi * scale), int(h_roi * scale)
+            resized = cv2.resize(cropped, (nw, nh), interpolation=cv2.INTER_CUBIC)
+            
+            # 创建 224x224 的中性灰背景
+            roi = np.full((ROI_SIZE[1], ROI_SIZE[0], 3), 114, dtype=np.uint8)
+            # 贴到正中间
+            dx, dy = (ROI_SIZE[0] - nw) // 2, (ROI_SIZE[1] - nh) // 2
+            roi[dy:dy+nh, dx:dx+nw] = resized
+            
             cv2.imwrite(os.path.join(output_dir, label, f"{base_name}_roi{idx}.jpg"), roi)
             stats[label] += 1
             
-    print(f"✅ 裁剪完成！总计: {sum(stats.values())} 张商品特写图")
+    print(f"✅ 裁剪完成！总计: {sum(stats.values())} 张高质量商品特写图")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
