@@ -1,6 +1,6 @@
 # YOLO11 商品检测数据集配置文件 - 绝对路径版
 train: /kaggle/working/recognaization8commodate/yolo_dataset/images/train
-val: /kaggle/working/recognaization8commodate/yolo_dataset/images/train
+val: /kaggle/working/recognaization8commodate/yolo_dataset/images/val
 
 nc: 8
 names:

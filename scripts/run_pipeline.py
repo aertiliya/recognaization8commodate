@@ -54,7 +54,8 @@ def main():
     response = input("\n是否执行阶段 A (JSON -> YOLO)? (y/n): ").strip().lower()
     if response == 'y':
         source_dir = "image5/train"
-        output_dir = "yolo_dataset"
+        # 使用绝对路径以匹配 yolo_train.yaml 中的配置
+        output_dir = os.path.abspath("yolo_dataset")
         
         cmd = f'python "{scripts_dir / "01_convert_json_to_yolo.py"}" --source {source_dir} --output {output_dir}'
         ret = run_command(cmd, cwd=project_dir, description="转换 JSON 到 YOLO 格式")
@@ -62,6 +63,7 @@ def main():
             print("阶段 A 失败!")
             return
         print("阶段 A 完成!")
+        print(f"输出路径: {output_dir}")
     else:
         print("跳过阶段 A")
     
