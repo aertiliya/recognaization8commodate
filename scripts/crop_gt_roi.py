@@ -1,135 +1,157 @@
-"""
-第二步：裁剪 GT-ROI（真实框区域）
-从 JSON 标签中读取边界框，裁剪出商品 ROI，并按类别分类保存
-(已修复 Linux/Kaggle 跨平台路径问题，并支持命令行传参)
-"""
-
-import cv2
-import json
 import os
-import glob
-from tqdm import tqdm
-import numpy as np
-import argparse
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, Dataset
+from torchvision import transforms
+from PIL import Image
 from pathlib import Path
+import timm
+from tqdm import tqdm
+import json
+from sklearn.metrics import classification_report, confusion_matrix
 
-# 类别映射（8个类别）
-CLASS_NAMES = {
-    'hks_large': 0,
-    'hks_small': 1,
-    'hn_can': 2,
-    'jlb_can': 3,
-    'kkkl_can': 4,
-    'wlj_can': 5,
-    'xb_wt': 6,
-    'xb': 7
-}
+CLASSES = ["hks_large", "hks_small", "hn_can", "jlb_can", "kkkl_can", "wlj_can", "xb_wt", "xb"]
 
-ROI_SIZE = (224, 224)
-
-def parse_json_label(json_path):
-    """解析 X-AnyLabeling 的 JSON 标签文件"""
-    with open(json_path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    
-    objects = []
-    for shape in data.get('shapes', []):
-        label = shape.get('label', '')
-        points = shape.get('points', [])
+class GTROIDataset(Dataset):
+    def __init__(self, roi_dir, split='train', transform=None):
+        self.roi_dir = Path(roi_dir)
+        self.split = split
+        self.transform = transform
+        self.samples = []
+        self.class_to_idx = {cls: idx for idx, cls in enumerate(CLASSES)}
         
-        if label not in CLASS_NAMES:
-            continue
-        
-        if len(points) >= 2:
-            x_coords = [p[0] for p in points]
-            y_coords = [p[1] for p in points]
-            x_min, x_max = min(x_coords), max(x_coords)
-            y_min, y_max = min(y_coords), max(y_coords)
-            objects.append((label, [x_min, y_min, x_max, y_max]))
-    
-    return objects
-
-def crop_roi(image, bbox, target_size=(224, 224)):
-    """从图像中裁剪 ROI 并调整尺寸"""
-    h, w = image.shape[:2]
-    x_min, y_min, x_max, y_max = map(int, bbox)
-    
-    x_min = max(0, x_min)
-    y_min = max(0, y_min)
-    x_max = min(w, x_max)
-    y_max = min(h, y_max)
-    
-    if x_max <= x_min or y_max <= y_min:
-        return None
-    
-    roi = image[y_min:y_max, x_min:x_max]
-    roi_resized = cv2.resize(roi, target_size, interpolation=cv2.INTER_CUBIC)
-    
-    return roi_resized
-
-def process_dataset(input_dir, output_dir):
-    """处理数据集：读取所有图片和对应的JSON标签，裁剪ROI并分类保存"""
-    print("=" * 60)
-    print(f"第二步：裁剪 GT-ROI (从 {input_dir} 到 {output_dir})")
-    print("=" * 60)
-    
-    input_path = Path(input_dir)
-    # 使用 Pathlib 解决跨平台斜杠问题
-    json_files = list(input_path.glob("*.json"))
-    
-    print(f"找到 {len(json_files)} 个标签文件")
-    if len(json_files) == 0:
-        print("❌ 警告：未找到任何 JSON 文件，请检查源路径是否正确！")
-        return
-    
-    for class_name in CLASS_NAMES.keys():
-        os.makedirs(os.path.join(output_dir, class_name), exist_ok=True)
-    
-    stats = {name: 0 for name in CLASS_NAMES.keys()}
-    total_crops = 0
-    
-    for json_path in tqdm(json_files, desc="处理标签文件"):
-        base_name = json_path.stem
-        
-        # 尝试寻找图片 (处理多种后缀)
-        img_path = None
-        for ext in ['.jpg', '.jpeg', '.png', '.bmp']:
-            temp_path = input_path / f"{base_name}{ext}"
-            if temp_path.exists():
-                img_path = temp_path
-                break
-                
-        if img_path is None:
-            continue
+        # 🚨 关键：强行指向 train 或 val 文件夹
+        split_dir = self.roi_dir / split
+        if not split_dir.exists():
+            print(f"⚠️ 警告: 找不到拆分目录 {split_dir}")
+            return
             
-        image = cv2.imread(str(img_path))
-        if image is None:
-            continue
+        for class_name in CLASSES:
+            class_dir = split_dir / class_name
+            if not class_dir.exists():
+                continue
             
-        objects = parse_json_label(str(json_path))
+            class_images = list(class_dir.glob("*.jpg")) + list(class_dir.glob("*.jpeg")) + list(class_dir.glob("*.png"))
+            for img_path in class_images:
+                self.samples.append((str(img_path), self.class_to_idx[class_name]))
         
-        for idx, (label, bbox) in enumerate(objects):
-            roi = crop_roi(image, bbox, ROI_SIZE)
-            if roi is not None:
-                output_filename = f"{base_name}_roi{idx}.jpg"
-                output_path = os.path.join(output_dir, label, output_filename)
-                cv2.imwrite(output_path, roi)
-                stats[label] += 1
-                total_crops += 1
-                
-    print("\n" + "=" * 60)
-    print("裁剪完成统计：")
-    print("=" * 60)
-    for class_name, count in stats.items():
-        print(f"  {class_name:15s}: {count:5d} 张")
-    print(f"  {'总计':15s}: {total_crops:5d} 张")
-    print(f"\n✅ GT-ROI 数据集已保存到: {output_dir}")
+        print(f"加载 {split} 数据集: {len(self.samples)} 张图像")
+        for cls in CLASSES:
+            count = sum(1 for _, label in self.samples if label == self.class_to_idx[cls])
+            print(f"  {cls}: {count} 张")
+    
+    def __len__(self): return len(self.samples)
+    
+    def __getitem__(self, idx):
+        img_path, label = self.samples[idx]
+        image = Image.open(img_path).convert('RGB')
+        if self.transform: image = self.transform(image)
+        return image, label
+
+def get_transforms(img_size=224):
+    train_transform = transforms.Compose([
+        transforms.Resize((img_size, img_size)),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomRotation(15),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+    val_transform = transforms.Compose([
+        transforms.Resize((img_size, img_size)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+    return train_transform, val_transform
+
+def create_model(num_classes=8, model_name='convnextv2_atto', pretrained=True):
+    return timm.create_model(model_name, pretrained=pretrained, num_classes=num_classes)
+
+def train_epoch(model, dataloader, criterion, optimizer, device, epoch):
+    model.train()
+    running_loss, correct, total = 0.0, 0, 0
+    pbar = tqdm(dataloader, desc=f'Epoch {epoch}')
+    for images, labels in pbar:
+        images, labels = images.to(device), labels.to(device)
+        optimizer.zero_grad()
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        running_loss += loss.item()
+        _, predicted = outputs.max(1)
+        total += labels.size(0)
+        correct += predicted.eq(labels).sum().item()
+        pbar.set_postfix({'loss': running_loss / len(dataloader), 'acc': 100. * correct / total})
+    return running_loss / len(dataloader), 100. * correct / total
+
+def validate(model, dataloader, criterion, device):
+    model.eval()
+    running_loss, correct, total = 0.0, 0, 0
+    all_preds, all_labels = [], []
+    with torch.no_grad():
+        for images, labels in tqdm(dataloader, desc='Validating'):
+            images, labels = images.to(device), labels.to(device)
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            running_loss += loss.item()
+            _, predicted = outputs.max(1)
+            total += labels.size(0)
+            correct += predicted.eq(labels).sum().item()
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+    return running_loss / len(dataloader), 100. * correct / total, all_preds, all_labels
+
+def train_model(roi_dir='gt_roi_dataset', output_dir='convnext_models', model_name='convnextv2_atto', img_size=224, batch_size=32, epochs=50, lr=0.001, device='cuda'):
+    device = torch.device(device if torch.cuda.is_available() else 'cpu')
+    roi_dir = os.path.abspath(roi_dir)
+    output_path = Path(os.path.abspath(output_dir))
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    train_transform, val_transform = get_transforms(img_size)
+    
+    train_dataset = GTROIDataset(roi_dir, 'train', train_transform)
+    val_dataset = GTROIDataset(roi_dir, 'val', val_transform)
+    
+    if len(train_dataset) == 0 or len(val_dataset) == 0:
+        print("❌ 错误: 数据集为空，请检查裁剪步骤！")
+        return None, None
+    
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
+    
+    model = create_model(num_classes=len(CLASSES), model_name=model_name).to(device)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=0.05)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+    
+    best_acc = 0.0
+    history = {'train_loss': [], 'train_acc': [], 'val_loss': [], 'val_acc': []}
+    
+    for epoch in range(1, epochs + 1):
+        train_loss, train_acc = train_epoch(model, train_loader, criterion, optimizer, device, epoch)
+        val_loss, val_acc, val_preds, val_labels = validate(model, val_loader, criterion, device)
+        scheduler.step()
+        
+        history['train_loss'].append(train_loss); history['train_acc'].append(train_acc)
+        history['val_loss'].append(val_loss); history['val_acc'].append(val_acc)
+        
+        print(f"\nEpoch {epoch}/{epochs}")
+        print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}% | Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
+        
+        if val_acc > best_acc:
+            best_acc = val_acc
+            torch.save({'model_state_dict': model.state_dict(), 'classes': CLASSES}, output_path / 'best_model.pth')
+            print(f"💾 保存最佳模型，准确率: {best_acc:.2f}%")
+            
+    return model, history
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="裁剪 GT-ROI 脚本")
-    # 默认使用 Linux 正斜杠路径
-    parser.add_argument('--input', type=str, default='image5/train', help='输入图片和JSON目录')
-    parser.add_argument('--output', type=str, default='gt_roi_dataset', help='输出目录')
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--roi_dir', type=str, default='gt_roi_dataset')
+    parser.add_argument('--output_dir', type=str, default='convnext_models')
+    parser.add_argument('--epochs', type=int, default=50)
     args = parser.parse_args()
-    
-    process_dataset(args.input, args.output)
+    train_model(roi_dir=args.roi_dir, output_dir=args.output_dir, epochs=args.epochs)
