@@ -45,10 +45,10 @@ def main():
                         help="指定要执行的阶段，例如: --stages C D E")
     
     # 路径配置 (使用 Kaggle 的绝对路径作为默认值)
-    parser.add_argument('--test_images', default='/kaggle/working/recognaization8commodate/yolo_dataset/test/images')
-    parser.add_argument('--test_labels', default='/kaggle/working/recognaization8commodate/yolo_dataset/test/labels')
-    parser.add_argument('--yolo_pt', default='/kaggle/working/recognaization8commodate/scripts/best.pt')
-    parser.add_argument('--conv_pth', default='/kaggle/working/recognaization8commodate/convnext_models/best_model.pth')
+    parser.add_argument('--test_images', default='/kaggle/input/recognaization8commodate/yolo_dataset/test/images')
+    parser.add_argument('--test_labels', default='/kaggle/input/recognaization8commodate/yolo_dataset/test/labels')
+    parser.add_argument('--yolo_pt', default='/kaggle/input/recognaization8commodate/scripts/best.pt')
+    parser.add_argument('--conv_pth', default='/kaggle/input/recognaization8commodate/convnext_models/best_model.pth')
     parser.add_argument('--epochs', default='50', help="ConvNeXt 的训练轮数")
     
     args = parser.parse_args()

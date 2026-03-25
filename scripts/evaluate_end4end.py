@@ -136,8 +136,8 @@ if __name__ == "__main__":
     # 根据你的目录结构调整默认路径
     parser.add_argument('--test_images', type=str, default='yolo_dataset/test/images', help='Test集图片目录')
     parser.add_argument('--test_labels', type=str, default='yolo_dataset/test/labels', help='Test集标签目录')
-    parser.add_argument('--yolo_model', type=str, default='scripts/best.pt', help='训练好的YOLO模型')
-    parser.add_argument('--convnext_model', type=str, default='convnext_models/best_model.pth', help='训练好的ConvNeXt模型')
+    parser.add_argument('--yolo_model', type=str, default='/kaggle/working/recognaization8commodate/scripts/best.pt', help='训练好的YOLO模型')
+    parser.add_argument('--convnext_model', type=str, default='/kaggle/working/recognaization8commodate/convnext_models/best_model.pth', help='训练好的ConvNeXt模型')
     
     args = parser.parse_args()
     

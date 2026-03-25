@@ -284,9 +284,9 @@ def main():
     parser = argparse.ArgumentParser(description='YOLO11 + ConvNeXt V2 端到端推理')
     parser.add_argument('--input', type=str, required=True, 
                        help='输入图像路径或目录')
-    parser.add_argument('--yolo_model', type=str, default='scripts/best.pt',
+    parser.add_argument('--yolo_model', type=str, default='/kaggle/working/recognaization8commodate/scripts/best.pt', 
                        help='YOLO 模型路径')
-    parser.add_argument('--convnext_model', type=str, default='convnext_models/best_model.pth',
+    parser.add_argument('--convnext_model', type=str, default='/kaggle/working/recognaization8commodate/convnext_models/best_model.pth', 
                        help='ConvNeXt 模型路径')
     parser.add_argument('--output', type=str, default='inference_output',
                        help='输出目录')
