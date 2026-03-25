@@ -1,4 +1,3 @@
-%%writefile /kaggle/working/recognaization8commodate/scripts/crop_gt_roi.py
 import cv2, json, os, argparse
 import numpy as np
 from pathlib import Path
