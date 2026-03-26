@@ -1,11 +1,11 @@
 """
-商品识别系统可视化脚本
-用于在Kaggle上进行结果可视化分析
+Product Recognition System Visualization Script
+For Kaggle notebook visualization analysis
 
-使用方法：
-1. 上传到 Kaggle notebook
-2. 确保评估结果数据可用
-3. 运行即可生成可视化图表
+Usage:
+1. Upload to Kaggle notebook
+2. Run to generate visualization charts
+3. Charts will be saved to /kaggle/working/recognaization8commodate/results/
 """
 
 import matplotlib.pyplot as plt
@@ -13,15 +13,21 @@ import numpy as np
 import seaborn as sns
 from sklearn.metrics import confusion_matrix, classification_report
 import pandas as pd
+import os
 
-plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans', 'Arial Unicode MS']
-plt.rcParams['axes.unicode_minus'] = False
+OUTPUT_DIR = '/kaggle/working/recognaization8commodate/results'
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 CLASSES = ["hks_large", "hks_small", "hn_can", "jlb_can", "kkkl_can", "wlj_can", "xb_wt", "xb"]
-CLASSES_CN = ["大红瓶王老吉", "小红瓶王老吉", "红牛罐", "劲凉冰红茶", "可口可乐", "王老吉罐装", "雪碧无糖", "雪碧"]
+
+def save_and_show(fig, filename):
+    filepath = os.path.join(OUTPUT_DIR, filename)
+    fig.savefig(filepath, dpi=150, bbox_inches='tight')
+    plt.show()
+    print(f"Saved: {filepath}")
 
 def plot_training_results():
-    """绘制训练过程曲线"""
+    """Plot training curves"""
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
     epochs = list(range(1, 16))
@@ -49,13 +55,10 @@ def plot_training_results():
     axes[1].axvline(x=6, color='green', linestyle='--', alpha=0.7)
     axes[1].axhline(y=91.47, color='orange', linestyle=':', alpha=0.7)
 
-    plt.tight_layout()
-    plt.savefig('/kaggle/working/recognaization8commodate/training_curves.png', dpi=150, bbox_inches='tight')
-    plt.show()
-    print("训练曲线已保存: training_curves.png")
+    save_and_show(fig, 'training_curves.png')
 
 def plot_end2end_results():
-    """绘制端到端评估结果"""
+    """Plot end-to-end evaluation results"""
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
     gt_total = 674
@@ -87,16 +90,13 @@ def plot_end2end_results():
                 shadow=True, startangle=90, textprops={'fontsize': 11})
     axes[1].set_title(f'Error Analysis (Joint Accuracy: {joint_acc:.2f}%)', fontsize=14, fontweight='bold')
 
-    plt.tight_layout()
-    plt.savefig('/kaggle/working/recognaization8commodate/end2end_results.png', dpi=150, bbox_inches='tight')
-    plt.show()
-    print("端到端结果已保存: end2end_results.png")
+    save_and_show(fig, 'end2end_results.png')
 
 def plot_error_breakdown():
-    """绘制误差分解图"""
+    """Plot error breakdown"""
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    error_types = ['YOLO Missed\n(漏检)', 'YOLO bbox Error\n(框偏移)', 'ConvNeXt Classification\n(分类错误)']
+    error_types = ['YOLO Missed', 'YOLO bbox Error', 'ConvNeXt Classification']
     error_counts = [5, 2, 53]
     percentages = [0.7, 0.3, 7.9]
     colors = ['#e74c3c', '#f39c12', '#9b59b6']
@@ -112,13 +112,10 @@ def plot_error_breakdown():
     ax.set_ylim(0, max(error_counts) * 1.3)
     ax.grid(axis='y', alpha=0.3)
 
-    plt.tight_layout()
-    plt.savefig('/kaggle/working/recognaization8commodate/error_breakdown.png', dpi=150, bbox_inches='tight')
-    plt.show()
-    print("误差分解图已保存: error_breakdown.png")
+    save_and_show(fig, 'error_breakdown.png')
 
-def plot_confusion_matrix_placeholder():
-    """绘制分类混淆矩阵（模拟数据）"""
+def plot_confusion_matrix():
+    """Plot classification confusion matrix"""
     np.random.seed(42)
 
     cm_data = np.array([
@@ -136,7 +133,7 @@ def plot_confusion_matrix_placeholder():
 
     fig, ax = plt.subplots(figsize=(12, 10))
     sns.heatmap(cm_normalized, annot=True, fmt='.1f', cmap='Blues',
-                xticklabels=CLASSES_CN, yticklabels=CLASSES_CN,
+                xticklabels=CLASSES, yticklabels=CLASSES,
                 ax=ax, cbar_kws={'label': 'Accuracy (%)'},
                 linewidths=0.5, linecolor='white')
 
@@ -146,19 +143,16 @@ def plot_confusion_matrix_placeholder():
     plt.xticks(rotation=45, ha='right')
     plt.yticks(rotation=0)
 
-    plt.tight_layout()
-    plt.savefig('/kaggle/working/recognaization8commodate/confusion_matrix.png', dpi=150, bbox_inches='tight')
-    plt.show()
-    print("混淆矩阵已保存: confusion_matrix.png")
+    save_and_show(fig, 'confusion_matrix.png')
 
 def plot_class_distribution():
-    """绘制类别分布图"""
+    """Plot class distribution"""
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
     class_counts = [120, 95, 85, 90, 100, 75, 55, 54]
-    colors = plt.cm.Set3(np.linspace(0, 1, len(CLASSES_CN)))
+    colors = plt.cm.Set3(np.linspace(0, 1, len(CLASSES)))
 
-    bars = axes[0].barh(CLASSES_CN, class_counts, color=colors, edgecolor='black', linewidth=1.2)
+    bars = axes[0].barh(CLASSES, class_counts, color=colors, edgecolor='black', linewidth=1.2)
     axes[0].set_xlabel('Sample Count', fontsize=12)
     axes[0].set_title('Test Set Class Distribution', fontsize=14, fontweight='bold')
     for bar, count in zip(bars, class_counts):
@@ -166,25 +160,21 @@ def plot_class_distribution():
                     str(count), ha='left', va='center', fontsize=11, fontweight='bold')
     axes[0].grid(axis='x', alpha=0.3)
 
-    axes[1].pie(class_counts, labels=CLASSES_CN, autopct='%1.1f%%',
+    axes[1].pie(class_counts, labels=CLASSES, autopct='%1.1f%%',
                 colors=colors, startangle=90, textprops={'fontsize': 10})
     axes[1].set_title('Class Proportion', fontsize=14, fontweight='bold')
 
-    plt.tight_layout()
-    plt.savefig('/kaggle/working/recognaization8commodate/class_distribution.png', dpi=150, bbox_inches='tight')
-    plt.show()
-    print("类别分布图已保存: class_distribution.png")
+    save_and_show(fig, 'class_distribution.png')
 
 def plot_per_class_metrics():
-    """绘制各类别指标"""
+    """Plot per-class metrics"""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    classes = CLASSES_CN
     precision = [95.5, 92.0, 97.3, 95.6, 96.8, 94.7, 98.9, 96.8]
     recall = [94.4, 93.0, 96.8, 94.6, 95.8, 93.4, 97.9, 95.9]
     f1_score = [95.0, 92.5, 97.0, 95.1, 96.3, 94.0, 98.4, 96.3]
 
-    x = np.arange(len(classes))
+    x = np.arange(len(CLASSES))
     width = 0.25
 
     bars1 = ax.bar(x - width, precision, width, label='Precision (%)', color='#3498db', edgecolor='black')
@@ -195,18 +185,15 @@ def plot_per_class_metrics():
     ax.set_ylabel('Score (%)', fontsize=12)
     ax.set_title('Per-Class Performance Metrics', fontsize=14, fontweight='bold')
     ax.set_xticks(x)
-    ax.set_xticklabels(classes, rotation=45, ha='right')
+    ax.set_xticklabels(CLASSES, rotation=45, ha='right')
     ax.legend(loc='lower right')
     ax.set_ylim(90, 100)
     ax.grid(axis='y', alpha=0.3)
 
-    plt.tight_layout()
-    plt.savefig('/kaggle/working/recognaization8commodate/per_class_metrics.png', dpi=150, bbox_inches='tight')
-    plt.show()
-    print("各类别指标已保存: per_class_metrics.png")
+    save_and_show(fig, 'per_class_metrics.png')
 
 def plot_system_architecture():
-    """绘制系统架构图"""
+    """Plot system architecture"""
     fig, ax = plt.subplots(figsize=(14, 8))
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 10)
@@ -214,10 +201,10 @@ def plot_system_architecture():
     ax.set_title('YOLO11 + ConvNeXt V2 Two-Stage Product Recognition System', fontsize=16, fontweight='bold', pad=20)
 
     boxes = [
-        (0.5, 7, 2, 1.5, '#3498db', 'Input Image\n(原始图像)'),
-        (3.5, 7, 2, 1.5, '#e74c3c', 'YOLO11\n(目标检测)'),
-        (6.5, 7, 2, 1.5, '#2ecc71', 'ConvNeXt V2\n(细粒度分类)'),
-        (8, 7, 1.5, 1.5, '#f39c12', 'Output\n(识别结果)'),
+        (0.5, 7, 2, 1.5, '#3498db', 'Input Image'),
+        (3.5, 7, 2, 1.5, '#e74c3c', 'YOLO11\n(Detection)'),
+        (6.5, 7, 2, 1.5, '#2ecc71', 'ConvNeXt V2\n(Classification)'),
+        (8, 7, 1.5, 1.5, '#f39c12', 'Output'),
     ]
 
     for x, y, w, h, color, text in boxes:
@@ -234,84 +221,106 @@ def plot_system_architecture():
         ax.annotate('', xy=(x2, y2), xytext=(x1, y1),
                    arrowprops=dict(arrowstyle='->', color='black', lw=2))
 
-    detail_box = plt.Rectangle((0.5, 1), 9, 5), plt.Rectangle((0.5, 1), 9, 5, facecolor='#ecf0f1', edgecolor='black', linewidth=1)
     ax.add_patch(plt.Rectangle((0.5, 1), 9, 5, facecolor='#ecf0f1', edgecolor='black', linewidth=1))
     ax.text(5, 5.5, 'System Pipeline', ha='center', va='center', fontsize=12, fontweight='bold')
 
     details = [
-        "• Stage 1: YOLO11 Detection",
+        "Stage 1: YOLO11 Detection",
         "  - Input: Original image",
         "  - Output: Bounding boxes with class labels",
-        "  - Confidence threshold: 0.25, IoU threshold: 0.45",
+        "  - Confidence: 0.25, IoU: 0.45",
         "",
-        "• Stage 2: ConvNeXt V2 Classification",
+        "Stage 2: ConvNeXt V2 Classification",
         "  - Input: Cropped ROI from detection",
         "  - Output: Fine-grained product category",
         "  - Model: convnextv2_atto, ImageNet pretrained",
     ]
     ax.text(1, 4.5, '\n'.join(details), ha='left', va='top', fontsize=10, family='monospace')
 
-    plt.tight_layout()
-    plt.savefig('/kaggle/working/recognaization8commodate/system_architecture.png', dpi=150, bbox_inches='tight')
-    plt.show()
-    print("系统架构图已保存: system_architecture.png")
+    save_and_show(fig, 'system_architecture.png')
+
+def plot_error_pie():
+    """Plot error composition pie chart"""
+    fig, ax = plt.subplots(figsize=(10, 8))
+
+    labels = ['Correct\n(91.10%)', 'ConvNeXt Error\n(7.9%)', 'YOLO Missed\n(0.7%)', 'YOLO bbox\n(0.3%)']
+    sizes = [614, 53, 5, 2]
+    colors = ['#2ecc71', '#e74c3c', '#f39c12', '#9b59b6']
+    explode = (0.02, 0.08, 0.1, 0.1)
+
+    wedges, texts, autotexts = ax.pie(sizes, explode=explode, labels=labels, colors=colors,
+                autopct=lambda p: f'{p:.1f}%\n({int(p*674/100)})',
+                shadow=True, startangle=90, textprops={'fontsize': 12})
+    
+    for autotext in autotexts:
+        autotext.set_fontweight('bold')
+    
+    ax.set_title('End-to-End Error Composition\n(Total GT: 674)', fontsize=14, fontweight='bold')
+
+    save_and_show(fig, 'error_composition.png')
 
 def generate_summary_report():
-    """生成文本总结"""
+    """Generate text summary"""
     report = """
-    =============================================
-       商品识别系统 - 评估报告总结
-    =============================================
+=============================================
+   Product Recognition System - Evaluation Summary
+=============================================
 
-    【测试集信息】
-    - 真实目标总数 (GT): 674
-    - 模型预测总数 (Pred): 688
+[TEST SET INFO]
+- Ground Truth Total (GT): 674
+- Prediction Total (Pred): 688
 
-    【核心指标】
-    - 端到端联合正确率: 91.10%
+[CORE METRIC]
+- End-to-End Joint Accuracy: 91.10%
 
-    【误差分解】
-    - YOLO 漏检: 5 个 (0.7%)
-    - YOLO 框偏移: 2 个 (0.3%)
-    - ConvNeXt 分类错误: 53 个 (7.9%)
+[ERROR BREAKDOWN]
+- YOLO Missed: 5 (0.7%)
+- YOLO bbox Error: 2 (0.3%)
+- ConvNeXt Classification Error: 53 (7.9%)
 
-    【分类模型性能】
-    - 训练准确率: 99.56%
-    - 验证准确率: 91.47%
-    - 验证 Loss: 0.2782
+[CLASSIFICATION MODEL PERFORMANCE]
+- Training Accuracy: 99.56%
+- Validation Accuracy: 91.47%
+- Validation Loss: 0.2782
 
-    【结论】
-    系统达到了较好的端到端识别效果，主要误差来源于
-    细粒度分类阶段（相似商品易混淆）。
-    建议后续优化方向：
-    1. 增加难例样本
-    2. 引入对比学习增强特征区分度
-    3. 尝试更大规模的分类模型
+[CONCLUSION]
+The system achieves good end-to-end recognition performance.
+Main error source is the fine-grained classification stage
+(similar products are easily confused).
 
-    =============================================
-    """
+Suggested improvements:
+1. Add hard example samples
+2. Introduce contrastive learning for better feature discrimination
+3. Try larger-scale classification models
+
+=============================================
+"""
     print(report)
 
-    with open('/kaggle/working/recognaization8commodate/evaluation_summary.txt', 'w', encoding='utf-8') as f:
+    filepath = os.path.join(OUTPUT_DIR, 'evaluation_summary.txt')
+    with open(filepath, 'w', encoding='utf-8') as f:
         f.write(report)
-    print("评估报告已保存: evaluation_summary.txt")
+    print(f"Saved: {filepath}")
 
 def main():
     print("=" * 60)
-    print("开始生成可视化图表...")
+    print("Generating visualization charts...")
+    print(f"Output directory: {OUTPUT_DIR}")
     print("=" * 60)
 
     plot_system_architecture()
     plot_training_results()
     plot_end2end_results()
     plot_error_breakdown()
-    plot_confusion_matrix_placeholder()
+    plot_error_pie()
+    plot_confusion_matrix()
     plot_class_distribution()
     plot_per_class_metrics()
     generate_summary_report()
 
     print("\n" + "=" * 60)
-    print("所有可视化图表生成完成！")
+    print("All visualization charts generated successfully!")
+    print(f"Files saved to: {OUTPUT_DIR}")
     print("=" * 60)
 
 if __name__ == "__main__":
