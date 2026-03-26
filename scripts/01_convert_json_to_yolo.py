@@ -133,16 +133,7 @@ def process_dataset(source_dir, output_dir, train_ratio=0.8, val_ratio=0.2, spli
     
     random.shuffle(labeled_files)
     
-    # 如果指定了 split，直接处理所有文件到该 split
-    if split:
-        print(f"处理 {split} 集: {len(labeled_files)} 个文件")
-        copy_files(labeled_files, split, source_path, output_path, class_mapping)
-        return len(labeled_files), 0
-    
-    train_count = int(len(labeled_files) * train_ratio)
-    train_files = labeled_files[:train_count]
-    val_files = labeled_files[train_count:]
-    
+    # 定义 copy_files 函数（移到条件判断之前）
     def copy_files(files, split_name, src_path, out_path, cls_map):
         for json_file in files:
             image_name = json_file.stem
@@ -169,6 +160,16 @@ def process_dataset(source_dir, output_dir, train_ratio=0.8, val_ratio=0.2, spli
             label_file = out_path / 'labels' / split_name / f"{image_name}.txt"
             with open(label_file, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(yolo_lines))
+    
+    # 如果指定了 split，直接处理所有文件到该 split
+    if split:
+        print(f"处理 {split} 集: {len(labeled_files)} 个文件")
+        copy_files(labeled_files, split, source_path, output_path, class_mapping)
+        return len(labeled_files), 0
+    
+    train_count = int(len(labeled_files) * train_ratio)
+    train_files = labeled_files[:train_count]
+    val_files = labeled_files[train_count:]
     
     print(f"处理训练集: {len(train_files)} 个文件")
     copy_files(train_files, 'train', source_path, output_path, class_mapping)
