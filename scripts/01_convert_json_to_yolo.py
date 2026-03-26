@@ -65,18 +65,24 @@ def convert_json_to_yolo(json_path, output_dir, class_mapping):
     
     return yolo_lines
 
-def process_dataset(source_dir, output_dir, train_ratio=0.8, val_ratio=0.2):
+def process_dataset(source_dir, output_dir, train_ratio=0.8, val_ratio=0.2, split=None):
     """
     处理整个数据集，划分训练集和验证集
+    如果指定了 split，直接将所有文件复制到该 split 文件夹
     """
     class_mapping = {cls: idx for idx, cls in enumerate(CLASSES)}
     
     source_path = Path(source_dir)
     output_path = Path(output_dir)
     
-    for split in ['train', 'val']:
+    # 如果指定了 split，直接输出到该文件夹
+    if split:
         (output_path / 'images' / split).mkdir(parents=True, exist_ok=True)
         (output_path / 'labels' / split).mkdir(parents=True, exist_ok=True)
+    else:
+        for s in ['train', 'val']:
+            (output_path / 'images' / s).mkdir(parents=True, exist_ok=True)
+            (output_path / 'labels' / s).mkdir(parents=True, exist_ok=True)
     
     json_files = list(source_path.rglob('*.json'))  # 递归搜索所有子目录
     
@@ -126,14 +132,21 @@ def process_dataset(source_dir, output_dir, train_ratio=0.8, val_ratio=0.2):
         print(f"  {idx}: {cls} - {class_counts[cls]} 个标注")
     
     random.shuffle(labeled_files)
+    
+    # 如果指定了 split，直接处理所有文件到该 split
+    if split:
+        print(f"处理 {split} 集: {len(labeled_files)} 个文件")
+        copy_files(labeled_files, split, source_path, output_path, class_mapping)
+        return len(labeled_files), 0
+    
     train_count = int(len(labeled_files) * train_ratio)
     train_files = labeled_files[:train_count]
     val_files = labeled_files[train_count:]
     
-    def copy_files(files, split):
+    def copy_files(files, split_name, src_path, out_path, cls_map):
         for json_file in files:
             image_name = json_file.stem
-            json_dir = json_file.parent  # JSON文件所在目录
+            json_dir = json_file.parent
             
             # 在JSON文件所在目录查找图像文件
             image_file = json_dir / f"{image_name}.jpg"
@@ -146,22 +159,22 @@ def process_dataset(source_dir, output_dir, train_ratio=0.8, val_ratio=0.2):
                         break
             
             if image_file.exists():
-                shutil.copy(image_file, output_path / 'images' / split / image_file.name)
+                shutil.copy(image_file, out_path / 'images' / split_name / image_file.name)
             else:
                 print(f"警告: 找不到图像文件 {image_name} 在 {json_dir}")
                 continue
             
-            yolo_lines = convert_json_to_yolo(json_file, output_path, class_mapping)
+            yolo_lines = convert_json_to_yolo(json_file, out_path, cls_map)
             
-            label_file = output_path / 'labels' / split / f"{image_name}.txt"
+            label_file = out_path / 'labels' / split_name / f"{image_name}.txt"
             with open(label_file, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(yolo_lines))
     
     print(f"处理训练集: {len(train_files)} 个文件")
-    copy_files(train_files, 'train')
+    copy_files(train_files, 'train', source_path, output_path, class_mapping)
     
     print(f"处理验证集: {len(val_files)} 个文件")
-    copy_files(val_files, 'val')
+    copy_files(val_files, 'val', source_path, output_path, class_mapping)
     
     print("转换完成!")
     return len(train_files), len(val_files)
@@ -173,10 +186,11 @@ if __name__ == "__main__":
     parser.add_argument('--source', type=str, default='../image5/train', help='源数据目录')
     parser.add_argument('--output', type=str, default='/kaggle/working/yolo_dataset', help='输出目录')
     parser.add_argument('--train_ratio', type=float, default=0.8, help='训练集比例')
+    parser.add_argument('--split', type=str, default=None, help='直接指定输出split名称(train/val/test)，会忽略train_ratio')
     
     args = parser.parse_args()
     
-    train_count, val_count = process_dataset(args.source, args.output, args.train_ratio)
+    train_count, val_count = process_dataset(args.source, args.output, args.train_ratio, split=args.split)
     print(f"\n数据集统计:")
     print(f"  训练集: {train_count} 张")
     print(f"  验证集: {val_count} 张")
