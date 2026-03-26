@@ -12,8 +12,8 @@ def main():
     parser.add_argument('--stages', nargs='+', choices=['A', 'B', 'C', 'D', 'E'], default=[])
     
     BASE = '/kaggle/working/recognaization8commodate'
-    parser.add_argument('--test_images', default=f'{BASE}/yolo_dataset/test/images')
-    parser.add_argument('--test_labels', default=f'{BASE}/yolo_dataset/test/labels')
+    parser.add_argument('--test_images', default=f'{BASE}/yolo_dataset/images/test')
+    parser.add_argument('--test_labels', default=f'{BASE}/yolo_dataset/labels/test')
     parser.add_argument('--yolo_pt', default=f'{BASE}/scripts/best.pt')
     parser.add_argument('--conv_pth', default=f'{BASE}/convnext_models/best_model.pth')
     parser.add_argument('--epochs', default='20')
