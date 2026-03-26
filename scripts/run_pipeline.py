@@ -26,9 +26,9 @@ def main():
     gpu_flag = "--multi_gpu" if args.multi_gpu else ""
     
     if 'A' in args.stages:
-        run_cmd(f'python "{scripts/"01_convert_json_to_yolo.py"}" --source image5/train --output "{BASE}/yolo_dataset" --train_ratio 1.0', BASE, "[A] 转换 Train")
-        run_cmd(f'python "{scripts/"01_convert_json_to_yolo.py"}" --source image5/val --output "{BASE}/yolo_dataset" --train_ratio 1.0', BASE, "[A] 转换 Val")
-        run_cmd(f'python "{scripts/"01_convert_json_to_yolo.py"}" --source image5/test --output "{BASE}/yolo_dataset" --train_ratio 1.0', BASE, "[A] 转换 Test")
+        run_cmd(f'python "{scripts/"01_convert_json_to_yolo.py"}" --source "{BASE}/image5/train" --output "{BASE}/yolo_dataset" --train_ratio 1.0', BASE, "[A] 转换 Train")
+        run_cmd(f'python "{scripts/"01_convert_json_to_yolo.py"}" --source "{BASE}/image5/val" --output "{BASE}/yolo_dataset" --train_ratio 1.0', BASE, "[A] 转换 Val")
+        run_cmd(f'python "{scripts/"01_convert_json_to_yolo.py"}" --source "{BASE}/image5/test" --output "{BASE}/yolo_dataset" --train_ratio 1.0', BASE, "[A] 转换 Test")
     
     if 'C' in args.stages:
         run_cmd(f'python "{scripts/"crop_gt_roi.py"}" --input "{BASE}/image5/train" --output "{BASE}/gt_roi_dataset/train"', BASE, "[C] 裁剪 Train 集")
